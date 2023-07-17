@@ -367,7 +367,7 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
                 continue
             self.world_info.layout[k] = self.data.body(k).xpos[:2].copy()
 
-    def _set_goal(self, pos: np.ndarray) -> None:
+    def _set_goal(self, name, pos: np.ndarray) -> None:
         """Set position of goal object in Mujoco instance.
 
         Note:
@@ -376,9 +376,9 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
             of task instance.
         """
         if pos.shape == (2,):
-            self.model.body('goal').pos[:2] = pos[:2]
+            self.model.body(name).pos[:2] = pos[:2]
         elif pos.shape == (3,):
-            self.model.body('goal').pos[:3] = pos[:3]
+            self.model.body(name).pos[:3] = pos[:3]
         else:
             raise NotImplementedError
 
@@ -535,8 +535,10 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
                 offset += self.render_conf.lidar_offset_delta
 
         # Add indicator for nonzero cost
-        if cost.get('cost', 0) > 0:
-            self._render_sphere(self.agent.pos, 0.25, COLOR['red'], alpha=0.5)
+        if cost['agent_0'].get('cost_sum', 0) > 0:
+            self._render_sphere(self.agent.pos_0, 0.25, COLOR['red'], alpha=0.5)
+        if cost['agent_1'].get('cost_sum', 0) > 0:
+            self._render_sphere(self.agent.pos_1, 0.25, COLOR['red'], alpha=0.5)
 
         # Draw vision pixels
         if mode in {'rgb_array', 'depth_array'}:

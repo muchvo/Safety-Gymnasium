@@ -14,7 +14,7 @@
 # ==============================================================================
 """Goal level 0."""
 
-from safety_gymnasium.assets.geoms import Goal
+from safety_gymnasium.assets.geoms.goal import GoalBlue, GoalRed
 from safety_gymnasium.bases.base_task import BaseTask
 
 
@@ -26,20 +26,48 @@ class GoalLevel0(BaseTask):
 
         self.placements_conf.extents = [-1, -1, 1, 1]
 
-        self._add_geoms(Goal(keepout=0.305))
+        self._add_geoms(
+            GoalRed(keepout=0.305, is_lidar_observed=False),
+            GoalBlue(keepout=0.305, is_lidar_observed=False),
+        )
 
-        self.last_dist_goal = None
+        self.last_dist_goal_red = None
+        self.last_dist_goal_blue = None
+
+    def dist_goal_red(self) -> float:
+        """Return the distance from the agent to the goal XY position."""
+        assert hasattr(self, 'goal_red'), 'Please make sure you have added goal into env.'
+        return self.agent.dist_xy(0, self.goal_red.pos)  # pylint: disable=no-member
+
+    def dist_goal_blue(self) -> float:
+        """Return the distance from the agent to the goal XY position."""
+        assert hasattr(self, 'goal_blue'), 'Please make sure you have added goal into env.'
+        return self.agent.dist_xy(1, self.goal_blue.pos)  # pylint: disable=no-member
 
     def calculate_reward(self):
         """Determine reward depending on the agent and tasks."""
         # pylint: disable=no-member
-        reward = 0.0
-        dist_goal = self.dist_goal()
-        reward += (self.last_dist_goal - dist_goal) * self.goal.reward_distance
-        self.last_dist_goal = dist_goal
+        reward = {}
 
-        if self.goal_achieved:
-            reward += self.goal.reward_goal
+        reward['agent_0'] = 0.0
+        dist_goal_red = self.dist_goal_red()
+        reward['agent_0'] += (
+            self.last_dist_goal_red - dist_goal_red
+        ) * self.goal_red.reward_distance
+        self.last_dist_goal_red = dist_goal_red
+
+        if self.goal_achieved[0]:
+            reward['agent_0'] += self.goal_red.reward_goal
+
+        reward['agent_1'] = 0.0
+        dist_goal_blue = self.dist_goal_blue()
+        reward['agent_1'] += (
+            self.last_dist_goal_blue - dist_goal_blue
+        ) * self.goal_blue.reward_distance
+        self.last_dist_goal_blue = dist_goal_blue
+
+        if self.goal_achieved[1]:
+            reward['agent_1'] += self.goal_blue.reward_goal
 
         return reward
 
@@ -52,10 +80,14 @@ class GoalLevel0(BaseTask):
     def update_world(self):
         """Build a new goal position, maybe with resampling due to hazards."""
         self.build_goal_position()
-        self.last_dist_goal = self.dist_goal()
+        self.last_dist_goal_red = self.dist_goal_red()
+        self.last_dist_goal_blue = self.dist_goal_blue()
 
     @property
     def goal_achieved(self):
         """Whether the goal of task is achieved."""
         # pylint: disable-next=no-member
-        return self.dist_goal() <= self.goal.size
+        return (
+            self.dist_goal_red() <= self.goal_red.size,
+            self.dist_goal_blue() <= self.goal_blue.size,
+        )

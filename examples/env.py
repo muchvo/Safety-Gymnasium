@@ -38,12 +38,12 @@ def run_random(env_name):
         # pylint: disable-next=unused-variable
         obs, reward, cost, terminated, truncated, info = env.step(act)
 
-        ep_ret += reward
-        ep_cost += cost
+        ep_ret += reward['agent_0']
+        ep_cost += cost['agent_0']
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', default='SafetyPointGoal2Debug-v0')
+    parser.add_argument('--env', default='SafetyPointGoal0Debug-v0')
     args = parser.parse_args()
     run_random(args.env)

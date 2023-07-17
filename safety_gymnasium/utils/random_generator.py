@@ -152,19 +152,37 @@ class RandomGenerator:
             if conflicted:
                 return False
             layout[name] = xy
+
+        for _ in range(100):
+            # pylint: disable-next=invalid-name
+            xy = self.draw_placement(self.placements['agent'][0], self.placements['agent'][1])
+            if placement_is_valid(xy, layout):
+                conflicted = False
+                break
+        if conflicted:
+            return False
+        layout['agent'] = [layout['agent'], xy]
         self.layout = layout
         return True
 
     def sample_goal_position(self) -> bool:
         """Sample a new goal position and return True, else False if sample rejected."""
-        placements, keepout = self.placements['goal']
+        placements, keepout = self.placements['goal_red']
         goal_xy = self.draw_placement(placements, keepout)
         for other_name, other_xy in self.layout.items():
             other_keepout = self.placements[other_name][1]
             dist = np.sqrt(np.sum(np.square(goal_xy - other_xy)))
             if dist < other_keepout + self.placements_margin + keepout:
                 return False
-        self.layout['goal'] = goal_xy
+        self.layout['goal_red'] = goal_xy
+        placements, keepout = self.placements['goal_blue']
+        goal_xy = self.draw_placement(placements, keepout)
+        for other_name, other_xy in self.layout.items():
+            other_keepout = self.placements[other_name][1]
+            dist = np.sqrt(np.sum(np.square(goal_xy - other_xy)))
+            if dist < other_keepout + self.placements_margin + keepout:
+                return False
+        self.layout['goal_blue'] = goal_xy
         return True
 
     def constrain_placement(self, placement: dict, keepout: float) -> tuple[float]:

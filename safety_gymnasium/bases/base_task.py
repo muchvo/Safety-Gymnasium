@@ -201,14 +201,17 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         """Determine costs depending on the agent and obstacles."""
         # pylint: disable-next=no-member
         mujoco.mj_forward(self.model, self.data)  # Ensure positions and contacts are correct
-        cost = {}
+        cost = {'agent_0': {}, 'agent_1': {}}
 
         # Calculate constraint violations
         for obstacle in self._obstacles:
-            cost.update(obstacle.cal_cost())
+            obj_cost = obstacle.cal_cost()
+            cost['agent_0'].update(obj_cost['agent_0']) if 'agent_0' in obj_cost else None
+            cost['agent_1'].update(obj_cost['agent_1']) if 'agent_1' in obj_cost else None
 
         # Sum all costs into single total cost
-        cost['cost_sum'] = sum(v for k, v in cost.items() if k.startswith('cost_'))
+        for agent_cost in cost.values():
+            agent_cost['cost_sum'] = sum(v for k, v in agent_cost.items() if k.startswith('cost_'))
         return cost
 
     def build_observation_space(self) -> gymnasium.spaces.Dict:
@@ -282,7 +285,7 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
             'agent_xy': layout['agent'],
         }
         if self.agent.rot is None:
-            world_config['agent_rot'] = self.random_generator.random_rot()
+            world_config['agent_rot'] = self.random_generator.generate_rots(2)
         else:
             world_config['agent_rot'] = float(self.agent.rot)
 
@@ -296,6 +299,8 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         )
         for obstacle in self._obstacles:
             num = obstacle.num if hasattr(obstacle, 'num') else 1
+            if obstacle.name == 'agent':
+                num = 2
             obstacle.process_config(world_config, layout, self.random_generator.generate_rots(num))
         if self._is_load_static_geoms:
             self._build_static_geoms_config(world_config['geoms'])
@@ -332,10 +337,16 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         else:
             raise ResamplingError('Failed to generate goal')
         # Move goal geom to new layout position
-        self.world_info.world_config_dict['geoms']['goal']['pos'][:2] = self.world_info.layout[
-            'goal'
-        ]
-        self._set_goal(self.world_info.layout['goal'])
+        if self.goal_achieved[0]:
+            self.world_info.world_config_dict['geoms']['goal_red']['pos'][
+                :2
+            ] = self.world_info.layout['goal_red']
+            self._set_goal('goal_red', self.world_info.layout['goal_red'])
+        if self.goal_achieved[1]:
+            self.world_info.world_config_dict['geoms']['goal_blue']['pos'][
+                :2
+            ] = self.world_info.layout['goal_blue']
+            self._set_goal('goal_blue', self.world_info.layout['goal_blue'])
         mujoco.mj_forward(self.model, self.data)  # pylint: disable=no-member
 
     def _placements_dict_from_object(self, object_name: dict) -> dict:

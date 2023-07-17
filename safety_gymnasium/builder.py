@@ -182,7 +182,8 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         self.task.agent.reset()
 
         cost = self._cost()
-        assert cost['cost_sum'] == 0, f'World has starting cost! {cost}'
+        assert cost['agent_0']['cost_sum'] == 0, f'World has starting cost! {cost}'
+        assert cost['agent_1']['cost_sum'] == 0, f'World has starting cost! {cost}'
         # Reset stateful parts of the environment
         self.first_reset = False  # Built our first world successfully
 
@@ -211,12 +212,14 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
             # Constraint violations
             info.update(self._cost())
 
-            cost = info['cost_sum']
+            cost = {}
+            cost['agent_0'] = info['agent_0']['cost_sum']
+            cost['agent_1'] = info['agent_1']['cost_sum']
 
             self.task.specific_step()
 
             # Goal processing
-            if self.task.goal_achieved:
+            if self.task.goal_achieved[0] or self.task.goal_achieved[1]:
                 info['goal_met'] = True
                 if self.task.mechanism_conf.continue_goal:
                     # Update the internal layout
@@ -265,10 +268,11 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         # Clip reward
         reward_clip = self.task.reward_conf.reward_clip
         if reward_clip:
-            in_range = -reward_clip < reward < reward_clip
-            if not in_range:
-                reward = np.clip(reward, -reward_clip, reward_clip)
-                print('Warning: reward was outside of range!')
+            for reward_i in reward.values():
+                in_range = -reward_clip < reward_i < reward_clip
+                if not in_range:
+                    reward_i = np.clip(reward_i, -reward_clip, reward_clip)
+                    print('Warning: reward was outside of range!')
 
         return reward
 
@@ -281,8 +285,9 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
 
         # Optionally remove shaping from reward functions.
         if self.task.cost_conf.constrain_indicator:
-            for k in list(cost.keys()):
-                cost[k] = float(cost[k] > 0.0)  # Indicator function
+            for _agent, agent_cost in cost.items():
+                for k in list(agent_cost.keys()):
+                    agent_cost[k] = float(agent_cost[k] > 0.0)  # Indicator function
 
         self.cost = cost
 

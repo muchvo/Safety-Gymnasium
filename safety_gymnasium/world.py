@@ -59,7 +59,7 @@ class World:  # pylint: disable=too-many-instance-attributes
     # *NOTE:* Changes to this configuration should also be reflected in `Builder` configuration
     DEFAULT: ClassVar[dict[str, Any]] = {
         'agent_base': 'assets/xmls/car.xml',  # Which agent XML to use as the base
-        'agent_xy': np.zeros(2),  # agent XY location
+        'agent_xy': np.zeros(4),  # agent XY location
         'agent_rot': 0,  # agent rotation about Z axis
         'floor_size': [3.5, 3.5, 0.1],  # Used for displaying the floor
         # FreeGeoms -- this is processed and added by the Builder class
@@ -133,14 +133,23 @@ class World:  # pylint: disable=too-many-instance-attributes
         worldbody = self.xml['mujoco']['worldbody']
 
         # Move agent position to starting position
-        worldbody['body']['@pos'] = convert(
+        worldbody['body'][0]['@pos'] = convert(
             # pylint: disable-next=no-member
-            np.r_[self.agent_xy, self._agent.z_height],
+            np.r_[self.agent_xy[0], self._agent.z_height],
         )
-        worldbody['body']['@quat'] = convert(rot2quat(self.agent_rot))  # pylint: disable=no-member
+        worldbody['body'][1]['@pos'] = convert(
+            # pylint: disable-next=no-member
+            np.r_[self.agent_xy[1], self._agent.z_height],
+        )
+        worldbody['body'][0]['@quat'] = convert(
+            rot2quat(self.agent_rot[0])
+        )  # pylint: disable=no-member
+        worldbody['body'][1]['@quat'] = convert(
+            rot2quat(self.agent_rot[1])
+        )  # pylint: disable=no-member
 
         # We need this because xmltodict skips over single-item lists in the tree
-        worldbody['body'] = [worldbody['body']]
+        # worldbody['body'] = [worldbody['body']]
         if 'geom' in worldbody:
             worldbody['geom'] = [worldbody['geom']]
         else:
@@ -248,7 +257,7 @@ class World:  # pylint: disable=too-many-instance-attributes
         worldbody['camera'] = cameras['b']['camera']
 
         # Build and add a tracking camera (logic needed to ensure orientation correct)
-        theta = self.agent_rot  # pylint: disable=no-member
+        theta = self.agent_rot[0]  # pylint: disable=no-member
         xyaxes = {
             'x1': np.cos(theta),
             'x2': -np.sin(theta),
@@ -271,15 +280,47 @@ class World:  # pylint: disable=too-many-instance-attributes
                 **xyaxes,
             ),
         )
+        theta1 = self.agent_rot[1]  # pylint: disable=no-member
+        xyaxes1 = {
+            'x1': np.cos(theta1),
+            'x2': -np.sin(theta1),
+            'x3': 0,
+            'y1': np.sin(theta1),
+            'y2': np.cos(theta1),
+            'y3': 1,
+        }
+        pos1 = {
+            'xp': 0 * np.cos(theta1) + (-2) * np.sin(theta1),
+            'yp': 0 * (-np.sin(theta1)) + (-2) * np.cos(theta1),
+            'zp': 2,
+        }
+        track_camera1 = xmltodict.parse(
+            """<b>
+            <camera name="track1" mode="track" pos="{xp} {yp} {zp}"
+                xyaxes="{x1} {x2} {x3} {y1} {y2} {y3}"/>
+            </b>""".format(
+                **pos1,
+                **xyaxes1,
+            ),
+        )
         if 'camera' in worldbody['body'][0]:
             if isinstance(worldbody['body'][0]['camera'], list):
-                worldbody['body'][0]['camera'] = worldbody['body'][0]['camera'] + [
+                worldbody['body'][0]['camera'] = worldbody['body'][0][0]['camera'] + [
                     track_camera['b']['camera'],
                 ]
             else:
                 worldbody['body'][0]['camera'] = [
                     worldbody['body'][0]['camera'],
                     track_camera['b']['camera'],
+                ]
+            if isinstance(worldbody['body'][1]['camera'], list):
+                worldbody['body'][1]['camera'] = worldbody['body'][1]['camera'] + [
+                    track_camera1['b']['camera'],
+                ]
+            else:
+                worldbody['body'][1]['camera'] = [
+                    worldbody['body'][1]['camera'],
+                    track_camera1['b']['camera'],
                 ]
         else:
             worldbody['body'][0]['camera'] = [
@@ -369,7 +410,7 @@ class World:  # pylint: disable=too-many-instance-attributes
                     **{k: convert(v) for k, v in mocap.items()},
                 ),
             )
-            worldbody['body'].append(body['body'])
+            # worldbody['body'].append(body['body'])
             # Add weld to equality list
             mocap['body1'] = name
             mocap['body2'] = name.replace('mocap', 'obj')
@@ -421,7 +462,6 @@ class World:  # pylint: disable=too-many-instance-attributes
         # Instantiate simulator
         # print(xmltodict.unparse(self.xml, pretty=True))
         self.xml_string = xmltodict.unparse(self.xml)
-
         model = mujoco.MjModel.from_xml_string(self.xml_string)  # pylint: disable=no-member
         data = mujoco.MjData(model)  # pylint: disable=no-member
 

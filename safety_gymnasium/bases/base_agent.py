@@ -184,7 +184,7 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self._load_model()
         self.sensor_conf = SensorConf()
         self.sensor_info = SensorInfo()
-        self.body_info = BodyInfo()
+        self.body_info = [BodyInfo(), BodyInfo()]
         self._init_body_info()
         self.debug_info = DebugInfo()
 
@@ -214,15 +214,16 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
         Access directly from mujoco instance created on agent xml model.
         """
-        self.body_info.nq = self.engine.model.nq
-        self.body_info.nv = self.engine.model.nv
-        self.body_info.nu = self.engine.model.nu
-        self.body_info.nbody = self.engine.model.nbody
-        self.body_info.geom_names = [
-            self.engine.model.geom(i).name
-            for i in range(self.engine.model.ngeom)
-            if self.engine.model.geom(i).name != 'floor'
-        ]
+        for i in range(2):
+            self.body_info[i].nq = self.engine.model.nq / 2
+            self.body_info[i].nv = self.engine.model.nv / 2
+            self.body_info[i].nu = self.engine.model.nu / 2
+            self.body_info[i].nbody = self.engine.model.nbody / 2
+            self.body_info[i].geom_names = [
+                self.engine.model.geom(i).name
+                for i in range(self.engine.model.ngeom)
+                if self.engine.model.geom(i).name != 'floor'
+            ][i * 2 : (i + 1) * 2]
 
     def _build_action_space(self) -> gymnasium.spaces.Box:
         """Build the action space for this agent.
@@ -443,7 +444,7 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         dim = self.engine.model.sensor_dim[id]
         return self.engine.data.sensordata[adr : adr + dim].copy()
 
-    def dist_xy(self, pos: np.ndarray) -> float:
+    def dist_xy(self, index, pos: np.ndarray) -> float:
         """Return the distance from the agent to an XY position.
 
         Args:
@@ -455,7 +456,10 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         pos = np.asarray(pos)
         if pos.shape == (3,):
             pos = pos[:2]
-        agent_pos = self.pos
+        if index == 0:
+            agent_pos = self.pos_0
+        elif index == 1:
+            agent_pos = self.pos_1
         return np.sqrt(np.sum(np.square(pos - agent_pos[:2])))
 
     def world_xy(self, pos: np.ndarray) -> np.ndarray:
@@ -532,10 +536,19 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return get_body_xvelp(self.engine.model, self.engine.data, 'agent').copy()
 
     @property
-    def pos(self) -> np.ndarray:
+    def pos_0(self) -> np.ndarray:
         """Get the position of the agent in the simulator world reference frame.
 
         Returns:
             np.ndarray: The Cartesian position of the agent.
         """
         return self.engine.data.body('agent').xpos.copy()
+
+    @property
+    def pos_1(self) -> np.ndarray:
+        """Get the position of the agent in the simulator world reference frame.
+
+        Returns:
+            np.ndarray: The Cartesian position of the agent.
+        """
+        return self.engine.data.body('agent1').xpos.copy()

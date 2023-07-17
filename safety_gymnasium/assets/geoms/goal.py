@@ -50,7 +50,7 @@ class Goal(Geom):  # pylint: disable=too-many-instance-attributes
     def get_config(self, xy_pos, rot):
         """To facilitate get specific config for this object."""
         geom = {
-            'name': 'goal',
+            'name': self.name,
             'size': [self.size, self.size / 2],
             'pos': np.r_[xy_pos, self.size / 2 + 1e-2],
             'rot': rot,
@@ -58,7 +58,7 @@ class Goal(Geom):  # pylint: disable=too-many-instance-attributes
             'contype': 0,
             'conaffinity': 0,
             'group': self.group,
-            'rgba': self.color * [1, 1, 1, self.alpha],  # transparent
+            'rgba': self.rgba,  # transparent
         }
         if self.is_meshed:
             geom.update(
@@ -74,4 +74,22 @@ class Goal(Geom):  # pylint: disable=too-many-instance-attributes
     @property
     def pos(self):
         """Helper to get goal position from layout."""
-        return self.engine.data.body('goal').xpos.copy()
+        return self.engine.data.body(self.name).xpos.copy()
+
+
+@dataclass
+class GoalRed(Goal):  # pylint: disable=too-many-instance-attributes
+    name: str = 'goal_red'
+    rgba: np.ndarray = None
+
+    def __post_init__(self):
+        self.rgba = np.array([0.7412, 0.0431, 0.1843, self.alpha])
+
+
+@dataclass
+class GoalBlue(Goal):  # pylint: disable=too-many-instance-attributes
+    name: str = 'goal_blue'
+    rgba: np.ndarray = None
+
+    def __post_init__(self):
+        self.rgba = np.array([0.0039, 0.1529, 0.3961, self.alpha])
