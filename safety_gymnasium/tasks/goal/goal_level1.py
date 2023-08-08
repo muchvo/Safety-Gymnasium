@@ -30,5 +30,5 @@ class GoalLevel1(GoalLevel0):
 
         self.placements_conf.extents = [-1.5, -1.5, 1.5, 1.5]
 
-        self._add_geoms(Hazards(num=8, keepout=0.18, is_lidar_observed=False))
-        self._add_free_geoms(Vases(num=1, is_constrained=False, is_lidar_observed=False))
+        self._add_geoms(Hazards(num=8, keepout=0.18))
+        self._add_free_geoms(Vases(num=1, is_constrained=False))

@@ -85,6 +85,7 @@ class ButtonLevel0(BaseTask):
         for obstacle in self._obstacles:
             if obstacle.is_lidar_observed:
                 obs[obstacle.name + '_lidar'] = self._obs_lidar(obstacle.pos, obstacle.group)
+                obs[obstacle.name + '_lidar1'] = self._obs_lidar1(obstacle.pos, obstacle.group)
             if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                 obs[obstacle.name + '_comp'] = self._obs_compass(obstacle.pos)
 

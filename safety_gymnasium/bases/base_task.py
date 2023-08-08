@@ -238,9 +238,21 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                     (self.lidar_conf.num_bins,),
                     dtype=np.float64,
                 )
+                obs_space_dict[name + '1'] = gymnasium.spaces.Box(
+                    0.0,
+                    1.0,
+                    (self.lidar_conf.num_bins,),
+                    dtype=np.float64,
+                )
             if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                 name = obstacle.name + '_' + 'comp'
                 obs_space_dict[name] = gymnasium.spaces.Box(
+                    -1.0,
+                    1.0,
+                    (self.compass_conf.shape,),
+                    dtype=np.float64,
+                )
+                obs_space_dict[name + '1'] = gymnasium.spaces.Box(
                     -1.0,
                     1.0,
                     (self.compass_conf.shape,),
@@ -403,6 +415,7 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         for obstacle in self._obstacles:
             if obstacle.is_lidar_observed:
                 obs[obstacle.name + '_lidar'] = self._obs_lidar(obstacle.pos, obstacle.group)
+                obs[obstacle.name + '_lidar1'] = self._obs_lidar1(obstacle.pos, obstacle.group)
             if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                 obs[obstacle.name + '_comp'] = self._obs_compass(obstacle.pos)
 
@@ -425,6 +438,19 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         """
         if self.lidar_conf.type == 'pseudo':
             return self._obs_lidar_pseudo(positions)
+
+        if self.lidar_conf.type == 'natural':
+            return self._obs_lidar_natural(group)
+
+        raise ValueError(f'Invalid lidar_type {self.lidar_conf.type}')
+
+    def _obs_lidar1(self, positions: np.ndarray | list, group: int) -> np.ndarray:
+        """Calculate and return a lidar observation.
+
+        See sub methods for implementation.
+        """
+        if self.lidar_conf.type == 'pseudo':
+            return self._obs_lidar_pseudo1(positions)
 
         if self.lidar_conf.type == 'natural':
             return self._obs_lidar_natural(group)
@@ -509,6 +535,54 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                 obs[bin_minus] = max(obs[bin_minus], (1 - alias) * sensor)
         return obs
 
+    def _obs_lidar_pseudo1(self, positions: np.ndarray) -> np.ndarray:
+        """Return an agent-centric lidar observation of a list of positions.
+
+        Lidar is a set of bins around the agent (divided evenly in a circle).
+        The detection directions are exclusive and exhaustive for a full 360 view.
+        Each bin reads 0 if there are no objects in that direction.
+        If there are multiple objects, the distance to the closest one is used.
+        Otherwise the bin reads the fraction of the distance towards the agent.
+
+        E.g. if the object is 90% of lidar_max_dist away, the bin will read 0.1,
+        and if the object is 10% of lidar_max_dist away, the bin will read 0.9.
+        (The reading can be thought of as "closeness" or inverse distance)
+
+        This encoding has some desirable properties:
+            - bins read 0 when empty
+            - bins smoothly increase as objects get close
+            - maximum reading is 1.0 (where the object overlaps the agent)
+            - close objects occlude far objects
+            - constant size observation with variable numbers of objects
+        """
+        positions = np.array(positions, ndmin=2)
+        obs = np.zeros(self.lidar_conf.num_bins)
+        for pos in positions:
+            pos = np.asarray(pos)
+            if pos.shape == (3,):
+                pos = pos[:2]  # Truncate Z coordinate
+            # pylint: disable-next=invalid-name
+            z = complex(*self._ego_xy1(pos))  # X, Y as real, imaginary components
+            dist = np.abs(z)
+            angle = np.angle(z) % (np.pi * 2)
+            bin_size = (np.pi * 2) / self.lidar_conf.num_bins
+            bin = int(angle / bin_size)  # pylint: disable=redefined-builtin
+            bin_angle = bin_size * bin
+            if self.lidar_conf.max_dist is None:
+                sensor = np.exp(-self.lidar_conf.exp_gain * dist)
+            else:
+                sensor = max(0, self.lidar_conf.max_dist - dist) / self.lidar_conf.max_dist
+            obs[bin] = max(obs[bin], sensor)
+            # Aliasing
+            if self.lidar_conf.alias:
+                alias = (angle - bin_angle) / bin_size
+                assert 0 <= alias <= 1, f'bad alias {alias}, dist {dist}, angle {angle}, bin {bin}'
+                bin_plus = (bin + 1) % self.lidar_conf.num_bins
+                bin_minus = (bin - 1) % self.lidar_conf.num_bins
+                obs[bin_plus] = max(obs[bin_plus], alias * sensor)
+                obs[bin_minus] = max(obs[bin_minus], (1 - alias) * sensor)
+        return obs
+
     def _obs_compass(self, pos: np.ndarray) -> np.ndarray:
         """Return an agent-centric compass observation of a list of positions.
 
@@ -549,8 +623,17 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
     def _ego_xy(self, pos: np.ndarray) -> np.ndarray:
         """Return the egocentric XY vector to a position from the agent."""
         assert pos.shape == (2,), f'Bad pos {pos}'
-        agent_3vec = self.agent.pos
-        agent_mat = self.agent.mat
+        agent_3vec = self.agent.pos_0
+        agent_mat = self.agent.mat_0
+        pos_3vec = np.concatenate([pos, [0]])  # Add a zero z-coordinate
+        world_3vec = pos_3vec - agent_3vec
+        return np.matmul(world_3vec, agent_mat)[:2]  # only take XY coordinates
+    
+    def _ego_xy1(self, pos: np.ndarray) -> np.ndarray:
+        """Return the egocentric XY vector to a position from the agent."""
+        assert pos.shape == (2,), f'Bad pos {pos}'
+        agent_3vec = self.agent.pos_1
+        agent_mat = self.agent.mat_1
         pos_3vec = np.concatenate([pos, [0]])  # Add a zero z-coordinate
         world_3vec = pos_3vec - agent_3vec
         return np.matmul(world_3vec, agent_mat)[:2]  # only take XY coordinates

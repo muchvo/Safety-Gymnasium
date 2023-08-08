@@ -81,6 +81,7 @@ class Goal(Geom):  # pylint: disable=too-many-instance-attributes
 class GoalRed(Goal):  # pylint: disable=too-many-instance-attributes
     name: str = 'goal_red'
     rgba: np.ndarray = None
+    color: np.ndarray = np.array([0.7412, 0.0431, 0.1843, 1])
 
     def __post_init__(self):
         self.rgba = np.array([0.7412, 0.0431, 0.1843, self.alpha])
@@ -90,6 +91,7 @@ class GoalRed(Goal):  # pylint: disable=too-many-instance-attributes
 class GoalBlue(Goal):  # pylint: disable=too-many-instance-attributes
     name: str = 'goal_blue'
     rgba: np.ndarray = None
+    color: np.ndarray = np.array([0.0039, 0.1529, 0.3961, 1])
 
     def __post_init__(self):
         self.rgba = np.array([0.0039, 0.1529, 0.3961, self.alpha])

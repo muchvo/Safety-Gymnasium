@@ -27,8 +27,8 @@ class GoalLevel0(BaseTask):
         self.placements_conf.extents = [-1, -1, 1, 1]
 
         self._add_geoms(
-            GoalRed(keepout=0.305, is_lidar_observed=False),
-            GoalBlue(keepout=0.305, is_lidar_observed=False),
+            GoalRed(keepout=0.305),
+            GoalBlue(keepout=0.305),
         )
 
         self.last_dist_goal_red = None

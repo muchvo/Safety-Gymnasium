@@ -46,7 +46,8 @@ class SensorConf:
         sensors_angle_components (bool): Observe sin/cos theta instead of theta.
     """
 
-    sensors: tuple = ('accelerometer', 'velocimeter', 'gyro', 'magnetometer')
+    sensors: tuple = ('accelerometer', 'velocimeter', 'gyro', 'magnetometer',
+                      'accelerometer1', 'velocimeter1', 'gyro1', 'magnetometer1')
     sensors_hinge_joints: bool = True
     sensors_ball_joints: bool = True
     sensors_angle_components: bool = True
@@ -342,9 +343,11 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         if self.sensor_info.freejoint_pos_name:
             sensor = self.sensor_info.freejoint_pos_name
             obs_space_dict[sensor] = gymnasium.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float64)
+            obs_space_dict[sensor + '1'] = gymnasium.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float64)
         if self.sensor_info.freejoint_qvel_name:
             sensor = self.sensor_info.freejoint_qvel_name
             obs_space_dict[sensor] = gymnasium.spaces.Box(-np.inf, np.inf, (3,), dtype=np.float64)
+            obs_space_dict[sensor + '1'] = gymnasium.spaces.Box(-np.inf, np.inf, (3,), dtype=np.float64)
         # Angular positions have wraparound effects, so output something more friendly
         if self.sensor_conf.sensors_angle_components:
             # Single joints are turned into sin(x), cos(x) pairs
@@ -411,9 +414,11 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         if self.sensor_info.freejoint_pos_name:
             sensor = self.sensor_info.freejoint_pos_name
             obs[sensor] = self.get_sensor(sensor)[2:]
+            obs[sensor + '1'] = self.get_sensor(sensor + '1')[2:]
         if self.sensor_info.freejoint_qvel_name:
             sensor = self.sensor_info.freejoint_qvel_name
             obs[sensor] = self.get_sensor(sensor)
+            obs[sensor + '1'] = self.get_sensor(sensor + '1')
         # Process angular position sensors
         if self.sensor_conf.sensors_angle_components:
             for sensor in self.sensor_info.hinge_pos_names:
@@ -518,13 +523,22 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return self.engine.data.body('agent').subtree_com.copy()
 
     @property
-    def mat(self) -> np.ndarray:
+    def mat_0(self) -> np.ndarray:
         """Get the rotation matrix of the agent in the simulator world reference frame.
 
         Returns:
             np.ndarray: The Cartesian rotation matrix of the agent.
         """
         return self.engine.data.body('agent').xmat.copy().reshape(3, -1)
+
+    @property
+    def mat_1(self) -> np.ndarray:
+        """Get the rotation matrix of the agent in the simulator world reference frame.
+
+        Returns:
+            np.ndarray: The Cartesian rotation matrix of the agent.
+        """
+        return self.engine.data.body('agent1').xmat.copy().reshape(3, -1)
 
     @property
     def vel(self) -> np.ndarray:
