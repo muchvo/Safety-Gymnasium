@@ -227,7 +227,16 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         """Construct observation space.  Happens only once during __init__ in Builder."""
         obs_space_dict = OrderedDict()  # See self.obs()
 
-        obs_space_dict.update(self.agent.build_sensor_observation_space())
+        sensor_dict = self.agent.build_sensor_observation_space()
+        agent0_sensor_dict = {}
+        agent1_sensor_dict = {}
+
+        for name, space in sensor_dict.items():
+            if name.endswith('1') and name[-2] != '_':
+                agent1_sensor_dict[name] = space
+            else:
+                agent0_sensor_dict[name] = space
+        obs_space_dict.update(agent0_sensor_dict)
 
         for obstacle in self._obstacles:
             if obstacle.is_lidar_observed:
@@ -238,21 +247,9 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                     (self.lidar_conf.num_bins,),
                     dtype=np.float64,
                 )
-                obs_space_dict[name + '1'] = gymnasium.spaces.Box(
-                    0.0,
-                    1.0,
-                    (self.lidar_conf.num_bins,),
-                    dtype=np.float64,
-                )
             if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                 name = obstacle.name + '_' + 'comp'
                 obs_space_dict[name] = gymnasium.spaces.Box(
-                    -1.0,
-                    1.0,
-                    (self.compass_conf.shape,),
-                    dtype=np.float64,
-                )
-                obs_space_dict[name + '1'] = gymnasium.spaces.Box(
                     -1.0,
                     1.0,
                     (self.compass_conf.shape,),
@@ -269,12 +266,37 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                 (*self.vision_env_conf.vision_size, 3),
                 dtype=np.uint8,
             )
+
+        obs_space_dict.update(agent1_sensor_dict)
+        for obstacle in self._obstacles:
+            if obstacle.is_lidar_observed:
+                name = obstacle.name + '_' + 'lidar1'
+                obs_space_dict[name] = gymnasium.spaces.Box(
+                    0.0,
+                    1.0,
+                    (self.lidar_conf.num_bins,),
+                    dtype=np.float64,
+                )
+            if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
+                name = obstacle.name + '_' + 'comp1'
+                obs_space_dict[name] = gymnasium.spaces.Box(
+                    -1.0,
+                    1.0,
+                    (self.compass_conf.shape,),
+                    dtype=np.float64,
+                )
+
+        if self.observe_vision:
+            width, height = self.vision_env_conf.vision_size
+            rows, cols = height, width
+            self.vision_env_conf.vision_size = (rows, cols)
             obs_space_dict['vision_1'] = gymnasium.spaces.Box(
                 0,
                 255,
                 (*self.vision_env_conf.vision_size, 3),
                 dtype=np.uint8,
             )
+
         self.obs_info.obs_space_dict = gymnasium.spaces.Dict(obs_space_dict)
 
         if self.observation_flatten:
