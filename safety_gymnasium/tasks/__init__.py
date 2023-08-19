@@ -60,3 +60,4 @@ from safety_gymnasium.tasks.safe_vision.formula_one.formula_one_level2 import Fo
 from safety_gymnasium.tasks.safe_vision.race.race_level0 import RaceLevel0
 from safety_gymnasium.tasks.safe_vision.race.race_level1 import RaceLevel1
 from safety_gymnasium.tasks.safe_vision.race.race_level2 import RaceLevel2
+from safety_gymnasium.tasks.agent_img_demo_task import GoalLevel3

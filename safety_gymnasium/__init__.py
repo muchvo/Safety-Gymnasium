@@ -128,7 +128,7 @@ __combine(push_tasks, robots, max_episode_steps=1000)
 
 # Goal Environments
 # ----------------------------------------
-goal_tasks = {'Goal0': {}, 'Goal1': {}, 'Goal2': {}}
+goal_tasks = {'Goal0': {}, 'Goal1': {}, 'Goal2': {}, 'Goal3': {}}
 __combine(goal_tasks, robots, max_episode_steps=1000)
 
 
