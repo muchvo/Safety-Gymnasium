@@ -35,11 +35,11 @@ class KeyboardViewer(WindowViewer):  # pylint: disable=too-many-instance-attribu
             pass
         # Switch cameras
         elif key == glfw.KEY_TAB:
-            self.cam.fixedcamid += 1
+            self.cam.fixedcamid = (self.cam.fixedcamid + 1) % 2
             self.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED  # pylint: disable=no-member
-            if self.cam.fixedcamid >= self.model.ncam:
-                self.cam.fixedcamid = -1
-                self.cam.type = mujoco.mjtCamera.mjCAMERA_FREE  # pylint: disable=no-member
+            # if self.cam.fixedcamid >= self.model.ncam:
+            #     self.cam.fixedcamid = -1
+            #     self.cam.type = mujoco.mjtCamera.mjCAMERA_FREE  # pylint: disable=no-member
         # Pause simulation
         elif key == glfw.KEY_SPACE and self._paused is not None:
             self._paused = not self._paused

@@ -43,7 +43,7 @@ def run_random(env_name):
             ep_ret, ep_cost = 0, 0
             obs, info = env.reset()  # pylint: disable=unused-variable
             save_video(
-                frames=render_list,
+                frames=render_list[100:],
                 video_folder=DIR,
                 name_prefix='test_vision_output',
                 fps=30,
@@ -71,6 +71,6 @@ def run_random(env_name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', default='SafetyRacecarFormulaOne2Debug-v0')
+    parser.add_argument('--env', default='SafetyRacecarRace2Debug-v0')
     args = parser.parse_args()
     run_random(args.env)
