@@ -34,8 +34,8 @@ def run_random(env_name):
     terminated, truncated = False, False
     ep_ret, ep_cost = 0, 0
     render_list = []
-    for i in range(150):  # pylint: disable=unused-variable
-        if terminated or truncated:
+    for i in range(201):  # pylint: disable=unused-variable
+        if i == 200:
             print(f'Episode Return: {ep_ret} \t Episode Cost: {ep_cost}')
             ep_ret, ep_cost = 0, 0
             obs, _ = env.reset()
@@ -43,7 +43,7 @@ def run_random(env_name):
                 frames=render_list,
                 video_folder=DIR,
                 name_prefix=env_name,
-                fps=20,
+                fps=50,
             )
             render_list = []
         assert env.observation_space.contains(obs)
